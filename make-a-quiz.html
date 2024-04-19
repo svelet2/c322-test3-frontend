@@ -17,6 +17,7 @@
       <li><a href="take-a-quiz.html">Take a quiz</a></li>
       <li class="right"><a href="login.html">Login</a></li>
     </ul>
+    <script src="configuration.js"></script>
 
     <div class="questions">
       <h2>Questions Bank</h2>
@@ -39,7 +40,7 @@
     </div>
 
     <script>
-      let host = "http://localhost:8080";
+      let host = getHost();
       let questions = [];
       let list = document.getElementById("list");
       let quiz = document.getElementById("quiz");
@@ -51,7 +52,11 @@
       displayTheQuestions();
 
       async function getAll() {
-        let response = await fetch(host + "/questions");
+        const headers = { "Authorization": `Bearer ${configuration.token()}` };
+        let response = await fetch(host + "/questions", { headers });
+        if (response.status == 401) {
+          logout();
+        }
         let result = await response.json();
         return result;
       }
@@ -62,6 +67,15 @@
         }
         list.innerHTML = "";
         for (let question of questions) {
+          const headers = {"Authorization": `Bearer ${configuration.token()}`};
+          console.log(question.id)
+          let response = await fetch(`${host}/questions/${question.id}/image`, {headers}); // Include the authorization header in the image URL request
+          if (response.status == 401) {
+            logout();
+          }
+          let result = await response.blob(); // Use response.blob() to get the image data
+          let imageUrl = URL.createObjectURL(result); // Create object URL for the image blob
+
           let div = document.createElement("div");
           div.id = `${question.id}`;
           div.onclick = function () {
@@ -80,7 +94,7 @@
           div.className = "card";
           let innerHtml = `
        
-      <img src="http://localhost:8080/questions/${question.id}/image" alt="question" style="width:100%">
+      <img src="${imageUrl}" alt="question" style="width:100%">
       <div class="container">
         <h4><b>${question.id}</b></h4> 
         <p>${question.description}</p>
@@ -112,6 +126,7 @@
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              "Authorization": `Bearer ${configuration.token()}`
             },
             body: JSON.stringify({"title": quizTitle, "questionIds": quizQuestions}),
           };
@@ -121,13 +136,16 @@
             method: "PUT",
             headers: {
               "Content-Type": "application/json",
+              "Authorization": `Bearer ${configuration.token()}`
             },
             body: JSON.stringify({"id": quizId, "title": quizTitle, "questionIds": quizQuestions}),
           };
         }
 
         let response = await fetch(endpoint, request);
-        if(response.status == 200) {
+        if (response.status == 401) {
+          logout();
+        } else if(response.status == 200) {
           quizId = await response.json();
           alert("The quiz was saved successfully!");
         }

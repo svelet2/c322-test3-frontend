@@ -18,6 +18,9 @@
         <li><a class="active" href="take-a-quiz.html">Take a quiz</a></li>
         <li class="right"><a href="login.html">Login</a></li>
       </ul>
+    <script src="configuration.js"></script>
+
+
     <div id="screen" class="screen">
       <div id="item" ></div>
       <div id="controls" class="controls">
@@ -28,7 +31,7 @@
     </div>
 
     <script>
-      let host = "http://localhost:8080";
+      let host = getHost();
       const urlParams = new URLSearchParams(window.location.search);
       const id = urlParams.get("id");
       let quiz = null;
@@ -42,7 +45,11 @@
       startTheQuiz();
 
       async function startTheQuiz() {
-        let response = await fetch(host + "/quizzes/" + id);
+        const headers = { "Authorization": `Bearer ${configuration.token()}` };
+        let response = await fetch(host + "/quizzes/" + id, { headers });
+        if (response.status == 401) {
+          logout();
+        }
         quiz = await response.json();
         await displayTheQuestion(0);
       }
@@ -111,10 +118,18 @@
 
       async function presentTheQuestion(question) {
         item.innerHTML = "";
+        const headers = {"Authorization": `Bearer ${configuration.token()}`};
+        let response = await fetch(`${host}/questions/${question.id}/image`, {headers}); // Include the authorization header in the image URL request
+        if (response.status == 401) {
+          logout();
+        }
+        let result = await response.blob(); // Use response.blob() to get the image data
+        let imageUrl = URL.createObjectURL(result); // Create object URL for the image blob
+        
         let div = document.createElement("div");
         div.className = "card";        
         let innerHtml = `
-         <img src="http://localhost:8080/questions/${question.id}/image" alt="question" style="width:100%">
+         <img src="${imageUrl}" alt="question" style="width:100%">
          <div class="container">
            <h4><b>${question.id}</b></h4>
            <p>${question.description}</p>

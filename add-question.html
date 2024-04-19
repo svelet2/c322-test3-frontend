@@ -16,6 +16,7 @@
       <li><a href="take-a-quiz.html">Take a quiz</a></li>
       <li class="right"><a href="login.html">Login</a></li>
     </ul>
+    <script src="configuration.js"></script>
 
     <form>
       <!-- Question Text -->
@@ -59,12 +60,16 @@
     <div id="list" class="cards"></div>
 
     <script>
-      let host = "http://localhost:8080";
+      let host = getHost();
       let questions = [];
       displayTheQuestions();
 
       async function getAll() {
-        let response = await fetch(host + "/questions");
+        const headers = { "Authorization": `Bearer ${configuration.token()}` };
+        let response = await fetch(host + "/questions", { headers });
+        if (response.status == 401) {
+          logout();
+        }
         let result = await response.json();
         return result;
       }
@@ -75,30 +80,40 @@
         }
 
         let list = document.getElementById("list");
-        list.innerHTML = "";
+          list.innerHTML = "";
+
 
         for (let question of questions) {
+          const headers = {"Authorization": `Bearer ${configuration.token()}`};
+          console.log(question.id)
+          let response = await fetch(`${host}/questions/${question.id}/image`, {headers}); // Include the authorization header in the image URL request
+          if (response.status == 401) {
+            logout();
+          }
+          let result = await response.blob(); // Use response.blob() to get the image data
+          let imageUrl = URL.createObjectURL(result); // Create object URL for the image blob
+
           let div = document.createElement("div");
           div.className = "card";
           let innerHtml = `
          
-        <img src="http://localhost:8080/questions/${question.id}/image" alt="question" style="width:100%">
-        <div class="container">
-          <h4><b>${question.id}</b></h4> 
-          <p>${question.description}</p>
-          <form>
-              <input type="radio" id="q${question.id}ptionA" name="q2Answer" value="A">
-              <label for="q${question.id}ptionA">${question.choices[0]}</label><br>
+            <img src="${imageUrl}" alt="question" style="width:100%">
+            <div class="container">
+              <h4><b>${question.id}</b></h4> 
+              <p>${question.description}</p>
+              <form>
+                  <input type="radio" id="q${question.id}ptionA" name="q2Answer" value="A">
+                  <label for="q${question.id}ptionA">${question.choices[0]}</label><br>
 
-              <input type="radio" id="q${question.id}ptionB" name="q2Answer" value="B">
-              <label for="q${question.id}ptionB">${question.choices[1]}</label><br>
+                  <input type="radio" id="q${question.id}ptionB" name="q2Answer" value="B">
+                  <label for="q${question.id}ptionB">${question.choices[1]}</label><br>
 
-              <input type="radio" id="q${question.id}ptionC" name="q2Answer" value="C">
-              <label for="q${question.id}ptionC">${question.choices[2]}</label><br>       
-          </form> 
-        </div>
-     
-            `;
+                  <input type="radio" id="q${question.id}ptionC" name="q2Answer" value="C">
+                  <label for="q${question.id}ptionC">${question.choices[2]}</label><br>       
+              </form> 
+            </div>
+        
+                `;
           div.innerHTML = innerHtml;
           list.appendChild(div);
         }
@@ -123,6 +138,8 @@
             question.answer = data.optionC;
             break;
         }        
+        console.log("ADDING")
+        console.log(data.imageFile)
         addTheQuestion(question, data.imageFile);
       }
 
@@ -132,15 +149,19 @@
         let request = {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
-          },
+                      "Content-Type": "application/json",
+                      "Authorization": `Bearer ${configuration.token()}`
+                  },
           body: JSON.stringify(question),
         };
         let response = await fetch(host + "/questions", request);
-        if (response.status == 200) {
+        if (response.status == 401) {
+          logout();
+        } else if (response.status == 200) {
           let id = await response.json();
           let result = await submitTheImage(id, imageFile);
           if (result) {
+            console.log(result)
             message = "The question was added successfully!";
           } else {
             message =
@@ -155,16 +176,23 @@
       }
 
       async function submitTheImage(id, imageFile) {
+
         let formData = new FormData();
         formData.append("file", imageFile);
         let request = {
           method: "POST",
-          body: formData,
+          headers: {
+                      "Authorization": `Bearer ${configuration.token()}`
+                  },
+          body: formData
         };
         let response = await fetch(
           host + "/questions/" + id + "/image",
           request
         );
+        if (response.status == 401) {
+          logout();
+        }
         let result = await response.json();
         return result;
       }
